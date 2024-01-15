@@ -70,7 +70,9 @@ fact permission_rankings {
     None.includes = none
 }
 
-sig User {
+// For now, we use only one User. Maybe we can have more, but I'm not sure what
+// properties we care about when multiple users are involved.
+one sig User {
     // A User can be a member of multiple Groups
     groups: set Group,
     var implicit: Perm -> Object,
@@ -168,8 +170,8 @@ pred cannot_escalate {
 
 check {
     cannot_escalate
-} for 3 Object, 2 Group, 1 User, 3 steps
+} for 3 Object, 2 Group, 3 steps
 
 check {
     subfolders_not_shipped => cannot_escalate
-} for 3 Object, 2 Group, 1 User, 3 steps
+} for 3 Object, 2 Group, 3 steps
