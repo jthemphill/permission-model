@@ -126,6 +126,8 @@ pred move_object[
 ] {
     // User must own the source object
     user_implicit[Own, user, source_object]
+    // User must own the target folder
+    user_implicit[Own, user, target_folder]
     // User must also own all of the source object's children
     all child_object: Object |
         (source_object in child_object.*parent) =>
@@ -144,10 +146,33 @@ fact users_can_move_objects {
             user: User,
             source_object: Object,
             target_folder: Folder + RootFolder
-        |
-            move_object[user, source_object, target_folder]
+        | move_object[user, source_object, target_folder]
     }
 }
+
+run {
+} for 3 Object, 2 Group, 2 steps
+
+/**
+ * True if a user never gains access to an app
+ */
+check user_cannot_gain_access {
+    all missing_perm: Perm, escalating_user: User, inaccessible_object: Object |
+        not user_implicit[missing_perm, escalating_user, inaccessible_object] =>
+            always not user_implicit[missing_perm, escalating_user, inaccessible_object]
+} for 3 Object, 2 Group, 2 steps
+
+/**
+ * True if a user never gains or loses access to an app
+ */
+pred cannot_change {
+    all missing_perm: Perm, escalating_user: User, inaccessible_object: Object |
+        user_implicit[missing_perm, escalating_user, inaccessible_object] <=>
+            always user_implicit[missing_perm, escalating_user, inaccessible_object]
+}
+check user_cannot_gain_or_lose_access {
+    cannot_change
+} for 3 Object, 2 Group, 2 steps
 
 /**
  * True if a folder never has a parent other than the root.
@@ -158,20 +183,36 @@ pred subfolders_not_shipped {
     }
 }
 
+check user_cannot_gain_or_lose_access_without_subfolders {
+    subfolders_not_shipped => cannot_change
+} for 3 Object, 2 Group, 2 steps
+
+
 /**
- * True if a user never gains permissions on an app that an admin didn't grant
- * them.
+ * True if a subfolder always has greater explicit permissions than its parents
  */
-pred cannot_escalate {
-    all missing_perm: Perm, escalating_user: User, inaccessible_object: Object |
-        not user_implicit[missing_perm, escalating_user, inaccessible_object] =>
-            always not user_implicit[missing_perm, escalating_user, inaccessible_object]
+pred children_have_greater_perms_than_parent {
+    all
+        group: Group,
+        child_perm: Perm,
+        child: group.explicit[child_perm],
+        ancestor: child.^parent - RootFolder |
+            some ancestor_perm: Perm | {
+                ancestor in group.explicit[ancestor_perm]
+                ancestor_perm in child_perm + child_perm.includes
+            }
 }
 
-check {
-    cannot_escalate
-} for 3 Object, 2 Group, 3 steps
+check explicit_greater_implies_implicit_greater {
+    children_have_greater_perms_than_parent =>
+        all user: User, perm: Perm, child: Object, ancestor: child.^parent - RootFolder |
+            user_implicit[perm, user, ancestor] => user_implicit[perm, user, child]
+} for 3 Object, 2 Group, 1 steps
 
-check {
-    subfolders_not_shipped => cannot_escalate
-} for 3 Object, 2 Group, 3 steps
+run {
+    children_have_greater_perms_than_parent
+} for 3 Object, 2 Group, 2 steps
+
+check user_cannot_gain_or_lose_access_if_children_have_greater_explicit_perms_than_parents {
+    children_have_greater_perms_than_parent => cannot_change
+} for 3 Object, 2 Group, 2 steps
