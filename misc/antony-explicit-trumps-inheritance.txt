@@ -1,0 +1,2 @@
+* If two groups have different perms for the same object, take the max
+* If a group has perms for the object, ignore all parent perms
