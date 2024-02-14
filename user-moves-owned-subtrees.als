@@ -3,47 +3,55 @@
  *
  * It has these facts, which are true today:
  *
- * 1. There are pages and folders arranged in a tree.
+ * 1. There are Pages and Folders arranged in a tree.
  * 2. A User can have many Groups, and a Group can have many Users.
  * 3. There are four Permissions, in decreasing order of strength:
  *    Own, Edit, Use, and None.
+ * 5. Groups can be granted explicit Permissions to Objects. If an Object
+ *    doesn't have an explicit Permission set, it inherits its permission from
+ *    the nearest ancestor that *does* have an explicit Permission set.
  * 4. A User's level of access for an Object is the max of the Permissions
  *    held by each of the User's Groups for that Object.
- * 5. A Group's level of access to an Object is the Permission it was
- *    explicitly granted, either to that object or to its nearest ancestor
- *    with an explicit grant.
- * 6. A User can move any Page that they Own.
+ * 5. A User can move any Page that they Own.
  *
  * And we are thinking of adding this fact:
  *
- * 7. A user can also move any Folder that they Own.
+ * 6. A user can also move any Folder that they Own.
  *
  * There's a property that I think is pretty important in a permissions system:
  *
- * 1. If a user does not have access to an object, they can never give
- *    themselves access to the object just by moving objects around.
+ * 1. If a User does not have access to an Object, they can never gain or lose
+ *    access to that Object just by moving Objects around.
  *
  * This spec shows that this property **no longer** holds when we give users
  * the ability to move Folders.
  */
 
-// There is always exactly one RootFolder
-one sig RootFolder {
-}
-
-// Each Object has a parent Folder
 abstract sig Object {
-    var parent: one (Folder + RootFolder)
+    // Each Object has a parent Folder, except for the root Folder
+    var parent: lone Folder
 }
 
 // There are two kinds of Object: Page and Folder
 sig Page, Folder extends Object {
 }
 
+// This function returns the one and only Folder with no parent
+fun root_folder: one Folder {
+    { f: Folder | f.parent = none }
+}
+
+// Every page has a parent Folder
+fact pages_are_always_in_folders {
+    always {
+        all page: Page | page.parent != none
+    }
+}
+
 fact all_objects_connected_to_tree {
     always {
         all object: Object {
-            RootFolder in object.*parent
+            root_folder in object.*parent
         }
     }
 }
@@ -57,7 +65,7 @@ fact tree_is_acyclic {
 }
 
 /**
- * If you own an object, you can edit it. If you can edit it, you can use it.
+ * Permissions, ordered from weakest to strongest.
  */
 enum Permission { None, Use, Edit, Own }
 
@@ -66,6 +74,8 @@ enum Permission { None, Use, Edit, Own }
 one sig User {
     // A User can be a member of multiple Groups
     groups: set Group,
+    // This relation represents the calculated level of access the User has to
+    // each Object.
     var implicit: Permission -> Object,
 } {
     all perm: Permission, object: Object |
@@ -107,7 +117,7 @@ pred user_implicit[needed_perm: Permission, object: Object] {
 
 pred move_object[
     source_object: Object,
-    target_folder: Folder + RootFolder
+    target_folder: Folder,
 ] {
     // User must own the source object
     user_implicit[Own, source_object]
@@ -129,13 +139,12 @@ fact users_can_move_objects {
     always {
         one
             source_object: Object,
-            target_folder: Folder + RootFolder
+            target_folder: Folder
         | move_object[source_object, target_folder]
     }
 }
 
-run example_system {
-} for 3 Object, 2 Group, 2 steps
+run example_system {} for 3 Object, 2 Group, 1 steps
 
 /**
  * True if a user never gains access to an app
@@ -168,9 +177,14 @@ check user_cannot_gain_or_lose_access_if_only_one_group {
  */
 pred subfolders_not_shipped {
     always {
-        all object: Folder | object.parent = RootFolder
+        // Groups cannot have access to the root folder before subfolders ships
+        no group: Group, permission: Permission | root_folder in group.explicit[permission]
+        // Every folder either is the root or has the root as its parent
+        all folder: Folder - root_folder | folder.parent = root_folder
     }
 }
+
+run subfolders_not_shipped for 3 Object, 2 Group, 2 steps
 
 check user_cannot_gain_or_lose_access_without_subfolders {
     subfolders_not_shipped => user_cannot_gain_or_lose_access
@@ -178,23 +192,25 @@ check user_cannot_gain_or_lose_access_without_subfolders {
 
 
 /**
- * True if a subfolder always has greater explicit permissions than its parents
+ * True if a subfolder has greater explicit permissions than its parents
  */
 pred children_have_greater_perms_than_parent {
     all
         group: Group,
         child_perm: Permission,
         child: group.explicit[child_perm],
-        ancestor: child.^parent - RootFolder |
-            some ancestor_perm: Permission | {
-                ancestor in group.explicit[ancestor_perm]
+        ancestor_perm: Permission,
+        ancestor: group.explicit[ancestor_perm] {
+            // If `ancestor` really is a parent, grandparent, etc. of the child, then
+            ancestor in child.^parent =>
+                // `ancestor` also has less than or equal permission to the child
                 ancestor_perm in child_perm + prevs[child_perm]
-            }
+        }
 }
 
 check explicit_greater_implies_implicit_greater {
     children_have_greater_perms_than_parent =>
-        all perm: Permission, child: Object, ancestor: child.^parent - RootFolder |
+        all perm: Permission, child: Object, ancestor: child.^parent - root_folder |
             user_implicit[perm, ancestor] => user_implicit[perm, child]
 } for 3 Object, 2 Group, 1 steps
 
