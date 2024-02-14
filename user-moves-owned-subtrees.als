@@ -27,8 +27,6 @@
  * the ability to move Folders.
  */
 
-open util/ordering[Permission]
-
 // There is always exactly one RootFolder
 one sig RootFolder {
 }
@@ -70,18 +68,13 @@ one sig User {
     groups: set Group,
     var implicit: Permission -> Object,
 } {
-    always {
-        all perm: Permission, object: Object |
-           user_implicit[perm, object] <=> object in implicit[perm]
-    }
+    all perm: Permission, object: Object |
+        user_implicit[perm, object] <=> object in implicit[perm]
 }
 
 sig Group {
-    // The Objects this Group was explicitly granted permissions for
-    explicit: Permission -> Object,
-} {
-    // You can only specify one setting for a Group/Object combination
-    disj [explicit[Own], explicit[Edit], explicit[Use], explicit[None]]
+    // For each Object, this Group can be explicitly granted at most one Permission
+    explicit: Permission lone -> Object,
 }
 
 /**
