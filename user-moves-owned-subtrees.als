@@ -153,7 +153,7 @@ check user_cannot_gain_access {
     all missing_perm: Permission, inaccessible_object: Object |
         not user_implicit[missing_perm, inaccessible_object] =>
             always not user_implicit[missing_perm, inaccessible_object]
-} for 3 Object, 2 Group, 2 steps
+} for 4 Object, 2 Group, 2 steps
 
 /**
  * True if the user never gains or loses access to an app
@@ -166,11 +166,11 @@ pred user_cannot_gain_or_lose_access {
 
 check user_cannot_gain_or_lose_access {
     user_cannot_gain_or_lose_access
-} for 3 Object, 2 Group, 2 steps
+} for 4 Object, 2 Group, 2 steps
 
 check user_cannot_gain_or_lose_access_if_only_one_group {
     user_cannot_gain_or_lose_access
-} for 3 Object, 1 Group, 2 steps
+} for 4 Object, 1 Group, 2 steps
 
 /**
  * True if a folder never has a parent other than the root.
@@ -188,7 +188,7 @@ run subfolders_not_shipped for 3 Object, 2 Group, 2 steps
 
 check user_cannot_gain_or_lose_access_without_subfolders {
     subfolders_not_shipped => user_cannot_gain_or_lose_access
-} for 3 Object, 2 Group, 2 steps
+} for 4 Object, 2 Group, 2 steps
 
 
 /**
@@ -212,10 +212,10 @@ check explicit_greater_implies_implicit_greater {
     children_have_greater_perms_than_parent =>
         all perm: Permission, child: Object, ancestor: child.^parent - root_folder |
             user_implicit[perm, ancestor] => user_implicit[perm, child]
-} for 3 Object, 2 Group, 1 steps
+} for 4 Object, 2 Group, 1 steps
 
-run children_have_greater_perms_than_parent for 3 Object, 2 Group, 2 steps
+run children_have_greater_perms_than_parent for 4 Object, 2 Group, 2 steps
 
 check user_cannot_gain_or_lose_access_if_children_have_greater_explicit_perms_than_parents {
     children_have_greater_perms_than_parent => user_cannot_gain_or_lose_access
-} for 3 Object, 2 Group, 2 steps
+} for 4 Object, 2 Group, 2 steps
