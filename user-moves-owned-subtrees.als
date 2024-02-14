@@ -76,10 +76,11 @@ one sig User {
     groups: set Group,
     // This relation represents the calculated level of access the User has to
     // each Object.
-    var implicit: Permission -> Object,
+    var implicit: Permission one -> Object,
 } {
-    all perm: Permission, object: Object |
-        user_implicit[perm, object] <=> object in implicit[perm]
+    all object: Object |
+        let strongest_perm = max[{p: Permission | user_implicit[p, object]}] |
+            object in implicit[strongest_perm]
 }
 
 sig Group {
@@ -92,6 +93,7 @@ sig Group {
  * directory structure of `object`.
  */
 pred group_implicit[needed_perm: Permission, group: Group, object: Object] {
+    needed_perm = None or
     some group_perm: Permission, ancestor_folder: object.*parent | {
         // True if the group has explicit permission for some ancestor folder
         ancestor_folder in group.explicit[group_perm]
