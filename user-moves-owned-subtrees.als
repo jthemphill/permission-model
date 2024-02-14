@@ -5,18 +5,18 @@
  *
  * 1. There are pages and folders arranged in a tree.
  * 2. A User can have many Groups, and a Group can have many Users.
- * 3. There are four levels of access, in decreasing order of strength:
+ * 3. There are four Permissions, in decreasing order of strength:
  *    Own, Edit, Use, and None.
- * 4. A user's level of access to an object is the max of their group's levels
- *    of access.
- * 5. A group's level of access to an object is the permission it was
+ * 4. A User's level of access for an Object is the max of the Permissions
+ *    held by each of the User's Groups for that Object.
+ * 5. A Group's level of access to an Object is the Permission it was
  *    explicitly granted, either to that object or to its nearest ancestor
  *    with an explicit grant.
- * 6. A user can move any page that they Own.
+ * 6. A User can move any Page that they Own.
  *
  * And we are thinking of adding this fact:
  *
- * 7. A user can also move any folder that they Own.
+ * 7. A user can also move any Folder that they Own.
  *
  * There's a property that I think is pretty important in a permissions system:
  *
@@ -26,6 +26,8 @@
  * This spec shows that this property **no longer** holds when we give users
  * the ability to move Folders.
  */
+
+open util/ordering[Permission]
 
 // There is always exactly one RootFolder
 one sig RootFolder {
@@ -56,39 +58,27 @@ fact tree_is_acyclic {
     }
 }
 
-abstract sig Perm {
-    includes: lone Perm
-}
-
-one sig Own, Edit, Use, None extends Perm {
-}
-
 /**
  * If you own an object, you can edit it. If you can edit it, you can use it.
  */
-fact permission_rankings {
-    Own.includes = Edit
-    Edit.includes = Use
-    Use.includes = None
-    None.includes = none
-}
+enum Permission { None, Use, Edit, Own }
 
 // For now, we use only one User. Maybe we can have more, but I'm not sure what
 // properties we care about when multiple users are involved.
 one sig User {
     // A User can be a member of multiple Groups
     groups: set Group,
-    var implicit: Perm -> Object,
+    var implicit: Permission -> Object,
 } {
     always {
-        all perm: Perm, object: Object |
+        all perm: Permission, object: Object |
            user_implicit[perm, object] <=> object in implicit[perm]
     }
 }
 
 sig Group {
     // The Objects this Group was explicitly granted permissions for
-    explicit: Perm -> Object,
+    explicit: Permission -> Object,
 } {
     // You can only specify one setting for a Group/Object combination
     disj [explicit[Own], explicit[Edit], explicit[Use], explicit[None]]
@@ -98,25 +88,25 @@ sig Group {
  * True if `group` implicitly grants `needed_perm` to `object`, based on the
  * directory structure of `object`.
  */
-pred group_implicit[needed_perm: Perm, group: Group, object: Object] {
-    some group_perm: Perm, ancestor_folder: object.*parent | {
+pred group_implicit[needed_perm: Permission, group: Group, object: Object] {
+    some group_perm: Permission, ancestor_folder: object.*parent | {
         // True if the group has explicit permission for some ancestor folder
         ancestor_folder in group.explicit[group_perm]
         // and this permission is at least as strong as the permission we need
-        needed_perm in group_perm.*includes
+        gte[group_perm, needed_perm]
         // And also there is no middle folder, in between us and that ancestor,
         // which has a weaker explicit permission
         no
             middle_folder: (object.*parent - ancestor_folder.*parent),
-            weaker_perm: Perm
+            weaker_perm: Permission
         {
-            needed_perm not in weaker_perm.includes
+            lt[weaker_perm, needed_perm]
             middle_folder in group.explicit[weaker_perm]
         }
     }
 }
 
-pred user_implicit[needed_perm: Perm, object: Object] {
+pred user_implicit[needed_perm: Permission, object: Object] {
     // A user has implicit permission on an object if any of its groups have
     // that implicit permission
     some group: User.groups | group_implicit[needed_perm, group, object]
@@ -151,14 +141,14 @@ fact users_can_move_objects {
     }
 }
 
-run {
+run example_system {
 } for 3 Object, 2 Group, 2 steps
 
 /**
  * True if a user never gains access to an app
  */
 check user_cannot_gain_access {
-    all missing_perm: Perm, inaccessible_object: Object |
+    all missing_perm: Permission, inaccessible_object: Object |
         not user_implicit[missing_perm, inaccessible_object] =>
             always not user_implicit[missing_perm, inaccessible_object]
 } for 3 Object, 2 Group, 2 steps
@@ -167,7 +157,7 @@ check user_cannot_gain_access {
  * True if the user never gains or loses access to an app
  */
 pred user_cannot_gain_or_lose_access {
-    all missing_perm: Perm, inaccessible_object: Object |
+    all missing_perm: Permission, inaccessible_object: Object |
         user_implicit[missing_perm, inaccessible_object] <=>
             always user_implicit[missing_perm, inaccessible_object]
 }
@@ -200,18 +190,18 @@ check user_cannot_gain_or_lose_access_without_subfolders {
 pred children_have_greater_perms_than_parent {
     all
         group: Group,
-        child_perm: Perm,
+        child_perm: Permission,
         child: group.explicit[child_perm],
         ancestor: child.^parent - RootFolder |
-            some ancestor_perm: Perm | {
+            some ancestor_perm: Permission | {
                 ancestor in group.explicit[ancestor_perm]
-                ancestor_perm in child_perm + child_perm.includes
+                ancestor_perm in child_perm + prevs[child_perm]
             }
 }
 
 check explicit_greater_implies_implicit_greater {
     children_have_greater_perms_than_parent =>
-        all perm: Perm, child: Object, ancestor: child.^parent - RootFolder |
+        all perm: Permission, child: Object, ancestor: child.^parent - RootFolder |
             user_implicit[perm, ancestor] => user_implicit[perm, child]
 } for 3 Object, 2 Group, 1 steps
 
