@@ -129,8 +129,6 @@ pred move_object[
     // all child_object: Object |
     //     (source_object in child_object.*parent) =>
     //         user_implicit[Own, child_object]
-    // Object must not be a parent of the folder you're moving it into
-    not source_object in target_folder.*parent
     // Object's parent becomes the target folder
     source_object.parent' = target_folder
     // All other parents stay unchanged
