@@ -63,6 +63,9 @@ abstract sig Perm {
 one sig Own, Edit, Use, None extends Perm {
 }
 
+/**
+ * If you own an object, you can edit it. If you can edit it, you can use it.
+ */
 fact permission_rankings {
     Own.includes = Edit
     Edit.includes = Use
@@ -79,7 +82,7 @@ one sig User {
 } {
     always {
         all perm: Perm, object: Object |
-           user_implicit[perm, this, object] <=> object in implicit[perm]
+           user_implicit[perm, object] <=> object in implicit[perm]
     }
 }
 
@@ -113,25 +116,24 @@ pred group_implicit[needed_perm: Perm, group: Group, object: Object] {
     }
 }
 
-pred user_implicit[needed_perm: Perm, user: User, object: Object] {
+pred user_implicit[needed_perm: Perm, object: Object] {
     // A user has implicit permission on an object if any of its groups have
     // that implicit permission
-    some group: user.groups | group_implicit[needed_perm, group, object]
+    some group: User.groups | group_implicit[needed_perm, group, object]
 }
 
 pred move_object[
-    user: User,
     source_object: Object,
     target_folder: Folder + RootFolder
 ] {
     // User must own the source object
-    user_implicit[Own, user, source_object]
+    user_implicit[Own, source_object]
     // User must own the target folder
-    user_implicit[Own, user, target_folder]
+    user_implicit[Own, target_folder]
     // User must also own all of the source object's children
-    all child_object: Object |
-        (source_object in child_object.*parent) =>
-            user_implicit[Own, user, child_object]
+    // all child_object: Object |
+    //     (source_object in child_object.*parent) =>
+    //         user_implicit[Own, child_object]
     // Object must not be a parent of the folder you're moving it into
     not source_object in target_folder.*parent
     // Object's parent becomes the target folder
@@ -143,10 +145,9 @@ pred move_object[
 fact users_can_move_objects {
     always {
         one
-            user: User,
             source_object: Object,
             target_folder: Folder + RootFolder
-        | move_object[user, source_object, target_folder]
+        | move_object[source_object, target_folder]
     }
 }
 
@@ -157,22 +158,27 @@ run {
  * True if a user never gains access to an app
  */
 check user_cannot_gain_access {
-    all missing_perm: Perm, escalating_user: User, inaccessible_object: Object |
-        not user_implicit[missing_perm, escalating_user, inaccessible_object] =>
-            always not user_implicit[missing_perm, escalating_user, inaccessible_object]
+    all missing_perm: Perm, inaccessible_object: Object |
+        not user_implicit[missing_perm, inaccessible_object] =>
+            always not user_implicit[missing_perm, inaccessible_object]
 } for 3 Object, 2 Group, 2 steps
 
 /**
- * True if a user never gains or loses access to an app
+ * True if the user never gains or loses access to an app
  */
-pred cannot_change {
-    all missing_perm: Perm, escalating_user: User, inaccessible_object: Object |
-        user_implicit[missing_perm, escalating_user, inaccessible_object] <=>
-            always user_implicit[missing_perm, escalating_user, inaccessible_object]
+pred user_cannot_gain_or_lose_access {
+    all missing_perm: Perm, inaccessible_object: Object |
+        user_implicit[missing_perm, inaccessible_object] <=>
+            always user_implicit[missing_perm, inaccessible_object]
 }
+
 check user_cannot_gain_or_lose_access {
-    cannot_change
+    user_cannot_gain_or_lose_access
 } for 3 Object, 2 Group, 2 steps
+
+check user_cannot_gain_or_lose_access_if_only_one_group {
+    user_cannot_gain_or_lose_access
+} for 3 Object, 1 Group, 2 steps
 
 /**
  * True if a folder never has a parent other than the root.
@@ -184,7 +190,7 @@ pred subfolders_not_shipped {
 }
 
 check user_cannot_gain_or_lose_access_without_subfolders {
-    subfolders_not_shipped => cannot_change
+    subfolders_not_shipped => user_cannot_gain_or_lose_access
 } for 3 Object, 2 Group, 2 steps
 
 
@@ -205,14 +211,12 @@ pred children_have_greater_perms_than_parent {
 
 check explicit_greater_implies_implicit_greater {
     children_have_greater_perms_than_parent =>
-        all user: User, perm: Perm, child: Object, ancestor: child.^parent - RootFolder |
-            user_implicit[perm, user, ancestor] => user_implicit[perm, user, child]
+        all perm: Perm, child: Object, ancestor: child.^parent - RootFolder |
+            user_implicit[perm, ancestor] => user_implicit[perm, child]
 } for 3 Object, 2 Group, 1 steps
 
-run {
-    children_have_greater_perms_than_parent
-} for 3 Object, 2 Group, 2 steps
+run children_have_greater_perms_than_parent for 3 Object, 2 Group, 2 steps
 
 check user_cannot_gain_or_lose_access_if_children_have_greater_explicit_perms_than_parents {
-    children_have_greater_perms_than_parent => cannot_change
+    children_have_greater_perms_than_parent => user_cannot_gain_or_lose_access
 } for 3 Object, 2 Group, 2 steps
