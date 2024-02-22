@@ -137,7 +137,7 @@ pred move_object[
 
 fact users_can_move_objects {
     always {
-        one
+        some
             source_object: Object,
             target_folder: Folder
         | move_object[source_object, target_folder]
