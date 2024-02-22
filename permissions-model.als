@@ -125,10 +125,6 @@ pred move_object[
     user_implicit[Own, source_object]
     // User must own the target folder
     user_implicit[Own, target_folder]
-    // User must also own all of the source object's children
-    // all child_object: Object |
-    //     (source_object in child_object.*parent) =>
-    //         user_implicit[Own, child_object]
     // Object's parent becomes the target folder
     source_object.parent' = target_folder
     // All other parents stay unchanged
