@@ -1,3 +1,0 @@
-* No escalation: Users cannot gain access to an app by moving things around
-* Safe: Users cannot lose access to an app by moving things around
-* Group-Additive: Adding a user to a group cannot remove access they had
