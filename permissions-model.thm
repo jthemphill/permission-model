@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="Edit"/>
+   <type name="Int"/>
+   <type name="None"/>
+   <type name="Object"/>
+   <type name="Own"/>
+   <type name="String"/>
+   <type name="univ"/>
+   <type name="Use"/>
+   <type name="ordering/Ord"/>
+   <type name="seq/Int"/>
+   <set name="$root_folder" type="Folder"/>
+   <set name="$user_cannot_gain_or_lose_access_inaccessible_object" type="Object"/>
+   <set name="$user_cannot_gain_or_lose_access_missing_perm" type="Permission"/>
+</node>
+
+<node color="Blue">
+   <type name="Move"/>
+</node>
+
+<node color="Gray">
+   <type name="User"/>
+</node>
+
+<node shape="Circle" color="Green">
+   <type name="Group"/>
+</node>
+
+<node shape="Egg" color="Red">
+   <type name="Page"/>
+</node>
+
+<node shape="Ellipse" color="Red">
+   <type name="Folder"/>
+</node>
+
+<node visible="no">
+   <type name="Permission"/>
+</node>
+
+</view>
+
+</alloy>
