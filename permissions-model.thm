@@ -8,44 +8,82 @@
 <defaultedge/>
 
 <node>
+   <type name="App"/>
+   <type name="CannotSee"/>
    <type name="Edit"/>
    <type name="Int"/>
-   <type name="None"/>
-   <type name="Object"/>
    <type name="Own"/>
    <type name="String"/>
+   <type name="Stutter"/>
    <type name="univ"/>
    <type name="Use"/>
+   <type name="open$4/Ord"/>
    <type name="ordering/Ord"/>
    <type name="seq/Int"/>
-   <set name="$root_folder" type="Folder"/>
-   <set name="$user_cannot_gain_or_lose_access_inaccessible_object" type="Object"/>
-   <set name="$user_cannot_gain_or_lose_access_missing_perm" type="Permission"/>
+   <set name="$user_self_grants_own_access_o" type="Object"/>
 </node>
 
 <node color="Blue">
-   <type name="Move"/>
+   <type name="Object"/>
 </node>
 
 <node color="Gray">
    <type name="User"/>
 </node>
 
-<node shape="Circle" color="Green">
+<node hideunconnected="no">
+   <type name="RootFolder"/>
+</node>
+
+<node hideunconnected="no" showlabel="no">
+   <set name="$events" type="Event"/>
+</node>
+
+<node hideunconnected="yes" shape="Parallelogram" color="Red">
+   <type name="Event"/>
+</node>
+
+<node shape="Egg" color="Green">
    <type name="Group"/>
 </node>
 
-<node shape="Egg" color="Red">
-   <type name="Page"/>
+<node shape="Ellipse">
+   <type name="Folder"/>
 </node>
 
-<node shape="Ellipse" color="Red">
-   <type name="Folder"/>
+<node style="Dashed" color="Blue">
+   <type name="Move"/>
 </node>
 
 <node visible="no">
    <type name="Permission"/>
 </node>
+
+<node visible="no" showlabel="no">
+   <set name="$stutter_happens" type="Event"/>
+</node>
+
+<edge constraint="no">
+   <relation name="explicit"> <type name="Group"/> <type name="Permission"/> <type name="Object"/> </relation>
+   <relation name="groups"> <type name="User"/> <type name="Group"/> </relation>
+</edge>
+
+<edge style="inherit">
+   <relation name="children"> <type name="Folder"/> <type name="Object"/> </relation>
+</edge>
+
+<edge style="inherit" visible="no" attribute="yes" constraint="no">
+   <relation name="calculated"> <type name="Group"/> <type name="Permission"/> <type name="Object"/> </relation>
+   <relation name="calculated"> <type name="User"/> <type name="Permission"/> <type name="Object"/> </relation>
+</edge>
+
+<edge visible="no">
+   <relation name="parent"> <type name="Object"/> <type name="Folder"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes" constraint="no" label="args">
+   <relation name="$move_happens"> <type name="Event"/> <type name="Object"/> <type name="Folder"/> </relation>
+</edge>
 
 </view>
 
