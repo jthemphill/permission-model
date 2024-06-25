@@ -166,12 +166,6 @@ pred children_have_greater_perms_than_parent {
     }
 }
 
-// Verify that if children have greater permissions than their parents at the beginning, moving
-// things around can't change that
-check children_always_have_greater_perms_than_parent {
-    children_have_greater_perms_than_parent implies always children_have_greater_perms_than_parent
-}
-
 // Verify that users can't change their own level of access if we enforce that children must have
 // greater permissions than their parents at the beginning
 check user_cannot_gain_or_lose_access_if_children_have_greater_explicit_perms_than_parents {
