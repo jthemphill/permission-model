@@ -79,13 +79,14 @@ one sig User {
     var implicit: Permission one -> Object,
 } {
     all object: Object |
-        let strongest_perm = max[{p: Permission | user_implicit[p, object]}] |
+        let strongest_perm = ordering/max[{p: Permission | user_implicit[p, object]}] |
             object in implicit[strongest_perm]
 }
 
 sig Group {
-    // For each Object, this Group can be explicitly granted at most one Permission
-    explicit: Permission lone -> Object,
+    // For each Object, this Group can be explicitly granted at most one
+    // Permission
+    explicit: Permission lone -> set Object,
 }
 
 /**
@@ -212,7 +213,7 @@ pred children_have_greater_perms_than_parent {
             // If `ancestor` really is a parent, grandparent, etc. of the child, then
             ancestor in child.^parent =>
                 // `ancestor` also has less than or equal permission to the child
-                ancestor_perm in child_perm + prevs[child_perm]
+                ancestor_perm in child_perm + ordering/prevs[child_perm]
         }
 }
 
