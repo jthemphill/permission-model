@@ -93,18 +93,19 @@ fun stutter_happens : set Event {
     { e: Stutter | stutter }
 }
 
-pred move[u: User, src: Object, dst: Folder] {
+// True iff `user` moved `src` into `dst`
+pred move[user: User, src: Object, dst: Folder] {
     // Can't move something into itself or one of its children
     src not in dst.*parent
 
-    // You're not actually moving it if it's already in the destination folder
-    dst not in src.parent
+    // Can't move something into the folder it's already in
+    src not in dst.children
 
     // User must own both the source and destination
-    src in u.calculated[Own]
-    dst in u.calculated[Own]
+    src in user.calculated[Own]
+    dst in user.calculated[Own]
 
-    // Change the source's parent
+    // The source object's parent changes to dst, everything else is the same
     parent' = parent - src->src.parent + src->dst
 }
 
@@ -142,7 +143,7 @@ check calculated_permission_correctness {
     }
 }
 
-// True if a user can change their own permissions by moving something
+// True iff a user changed their own permissions by moving something
 pred user_changes_own_permissions {
     some u: User, src: Object, dst: Folder {
         move[u, src, dst]
