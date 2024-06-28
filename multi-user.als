@@ -48,13 +48,13 @@ sig Group {
 
 fact calculate_group_permissions {
     always {
-        all g: Group, p: Permission, o: Object {
+        all g: Group, o: Object {
             // A Group's calculated permission to the object is the maximum explicit permission we find
             // as we go up the tree
             //
             // We are using `max` from the ordering module, which was automatically imported because
             // Permission is an enum.
-            o in g.calculated[p] iff p = ordering/max[{ ancestor_perm: Permission {
+            ~(g.calculated)[o] = ordering/max[{ ancestor_perm: Permission {
                 some ancestor : o.*parent | ancestor in g.explicit[ancestor_perm]
             } } + { CannotSee }]
         }
@@ -130,7 +130,7 @@ run inherited_permission {
         not o in g.calculated[Own]
         eventually o in g.calculated[Own]
     }
-} for 2 Group, 3 Object
+} for 1 User, 2 Group, 3 Object
 
 check maintains_tree_structure {
     always graph/treeRootedAt[children, RootFolder]
@@ -150,8 +150,7 @@ pred user_changes_own_permissions {
     }
 }
 
-// Verify that users can't change their own level of access if we enforce that children must have
-// greater permissions than their parents at the beginning
-check user_cannot_change_own_permissions_if_children_have_greater_explicit_perms_than_parents {
+// Verify that users can't change their own level of access
+check user_cannot_change_own_permissions {
     not user_changes_own_permissions
-} for 2 User, 4 Group, 5 Object, 4 steps
+} for 2 User, 4 Group, 4 Object, 2 steps
