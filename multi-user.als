@@ -48,39 +48,33 @@ sig Group {
 
 fact calculate_group_permissions {
     always {
-        all g: Group, p: Permission, o: Object {
-            // A Group's calculated permission to the object is the first explicit permission we find
+        all g: Group, o: Object {
+            // A Group's calculated permission to the object is the maximum explicit permission we find
             // as we go up the tree
-            o in g.calculated[p] iff {
-                some ancestor: o.*parent {
-                    ancestor in g.explicit[p]
-                    no closer_ancestor: o.*parent & ancestor.^children {
-                        closer_ancestor in g.explicit[Permission]
-                    }
-                }
-            }
+            //
+            // We are using `max` from the ordering module, which was automatically imported because
+            // Permission is an enum.
+            ~(g.calculated)[o] = ordering/max[{ ancestor_perm: Permission {
+                some ancestor : o.*parent | ancestor in g.explicit[ancestor_perm]
+            } } + { CannotSee }]
         }
     }
 }
 
-// For now, we use only one User.
-one sig User {
+sig User {
     // A User can be a member of multiple Groups
     groups: set Group,
     // This relation represents the calculated level of access the User has to
-    // each Object.
+    // each Object, which may change over the course of a simulation.
     var calculated: Permission one -> set Object,
 }
 
 fact calculate_user_permissions {
     always {
-        all o: Object {
+        all u: User, o: Object {
             // A user's calculated Permission to an Object is the greatest Permission to that Object
             // across all its Groups.
-            //
-            // We are using `max` from the ordering module, which was automatically imported because
-            // Permission is an enum.
-            ~(User.calculated)[o] = ordering/max[{ p: Permission | o in User.groups.calculated[p] } + { CannotSee }]
+            ~(u.calculated)[o] = ordering/max[{ p: Permission | o in u.groups.calculated[p] } + { CannotSee }]
         }
     }
 }
@@ -99,27 +93,28 @@ fun stutter_happens : set Event {
     { e: Stutter | stutter }
 }
 
-pred move[src: Object, dst: Folder] {
+// True iff `user` moved `src` into `dst`
+pred move[user: User, src: Object, dst: Folder] {
     // Can't move something into itself or one of its children
     src not in dst.*parent
 
-    // Not actually moving it if you're already in the destination folder
-    dst not in src.parent
+    // Can't move something into the folder it's already in
+    src not in dst.children
 
     // User must own both the source and destination
-    src in User.calculated[Own]
-    dst in User.calculated[Own]
+    src in user.calculated[Own]
+    dst in user.calculated[Own]
 
-    // Change the source's parent
+    // The source object's parent changes to dst, everything else is the same
     parent' = parent - src->src.parent + src->dst
 }
 
-fun move_happens : set Event -> set Object one -> one Folder {
-    { e: Move, src: Object, dst: Folder | move[src, dst] }
+fun move_happens : set Event -> set User -> set Object -> one Folder {
+    { e: Move, u: User, src: Object, dst: Folder | move[u, src, dst] }
 }
 
 fun events : set Event {
-    stutter_happens + move_happens.Object.Folder
+    stutter_happens + move_happens.Folder.Object.User
 }
 
 fact traces {
@@ -127,7 +122,7 @@ fact traces {
 }
 
 run move_an_object {
-    some src: Object, dst: Folder | eventually move[src, dst]
+    some u: User, src: Object, dst: Folder | move[u, src, dst]
 }
 
 run inherited_permission {
@@ -136,40 +131,27 @@ run inherited_permission {
         not o in g.calculated[Own]
         eventually o in g.calculated[Own]
     }
-} for 2 Group, 3 Object
+} for 1 User, 2 Group, 3 Object
 
 check maintains_tree_structure {
     always graph/treeRootedAt[children, RootFolder]
 }
 
 check calculated_permission_correctness {
-    all g: Group, o: Object, p: Permission {
-        o in g.explicit[p] implies o in g.calculated[p]
-    }
-}
-
-run user_self_grants_own_access {
-    some o: Object {
-        o in User.calculated[CannotSee]
-        eventually o in User.calculated[Own]
-    }
-} for 2 Group, 4 Object, 2 steps
-
-// True iff you can't set a lower permission for a child than its parents have
-pred children_have_greater_perms_than_parent {
     all g: Group, p: Permission, o: g.explicit[p] {
-        no greater_perm: ordering/nexts[p] {
-            some o.^parent & g.explicit[greater_perm]
-        }
+        ordering/gte[~(g.calculated)[o], p]
     }
 }
 
-run {
-    not children_have_greater_perms_than_parent
- } for 1 Group, 2 Object, 1 steps
-
-// Verify that users can't change their own level of access if we enforce that children must have
-// greater permissions than their parents at the beginning
-check user_cannot_gain_or_lose_access_if_children_have_greater_explicit_perms_than_parents {
-    children_have_greater_perms_than_parent implies User.calculated = User.calculated'
+// True iff a user changed their own permissions by moving something
+pred user_changes_own_permissions {
+    some u: User, src: Object, dst: Folder {
+        move[u, src, dst]
+        u.calculated != u.calculated'
+    }
 }
+
+// Verify that users can't change their own level of access
+check user_cannot_change_own_permissions {
+    not user_changes_own_permissions
+} for 2 User, 4 Group, 4 Object, 2 steps

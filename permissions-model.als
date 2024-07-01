@@ -186,14 +186,12 @@ check user_cannot_gain_or_lose_access_if_only_one_group {
  */
 pred subfolders_not_shipped {
     always {
-        // Groups cannot have access to the root folder before subfolders ships
-        no group: Group, permission: Permission | root_folder in group.explicit[permission]
         // Every folder either is the root or has the root as its parent
         all folder: Folder - root_folder | folder.parent = root_folder
     }
 }
 
-run subfolders_not_shipped for 3 Object, 2 Group, 2 steps
+run subfolders_not_shipped for 3 Object, 2 Group, 1 Move, 2 steps
 
 check user_cannot_gain_or_lose_access_without_subfolders {
     subfolders_not_shipped => user_cannot_gain_or_lose_access
