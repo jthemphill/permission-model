@@ -20,7 +20,9 @@
    <type name="open$4/Ord"/>
    <type name="ordering/Ord"/>
    <type name="seq/Int"/>
-   <set name="$user_self_grants_own_access_o" type="Object"/>
+   <set name="$user_changes_own_permissions_dst" type="Folder"/>
+   <set name="$user_changes_own_permissions_src" type="Object"/>
+   <set name="$user_changes_own_permissions_u" type="User"/>
 </node>
 
 <node color="Blue">
@@ -81,8 +83,8 @@
    <relation name="parent"> <type name="Object"/> <type name="Folder"/> </relation>
 </edge>
 
-<edge visible="no" attribute="yes" constraint="no" label="args">
-   <relation name="$move_happens"> <type name="Event"/> <type name="Object"/> <type name="Folder"/> </relation>
+<edge visible="no" attribute="yes">
+   <relation name="$move_happens"> <type name="Event"/> <type name="User"/> <type name="Object"/> <type name="Folder"/> </relation>
 </edge>
 
 </view>
